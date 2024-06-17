@@ -77,7 +77,7 @@ def train_temp():
     y_train_scaled = scaler_y.fit_transform(y_train)
     y_test_scaled = scaler_y.transform(y_test)
 
-    model = elm(hidden_units=20, activation_function='sigmoid', x=X_train_scaled, y=y_train_scaled, random_type='normal')
+    model = elm(hidden_units=60, activation_function='relu', x=X_train_scaled, y=y_train_scaled, random_type='normal', C=1.0)
     model.fit()
 
     y_pred_scaled = model.predict(X_test_scaled)
@@ -121,7 +121,7 @@ def train_humid():
     y_train_scaled = scaler_y.fit_transform(y_train)
     y_test_scaled = scaler_y.transform(y_test)
 
-    model = elm(hidden_units=20, activation_function='sigmoid', x=X_train_scaled, y=y_train_scaled, random_type='normal')
+    model = elm(hidden_units=60, activation_function='sigmoid', x=X_train_scaled, y=y_train_scaled, random_type='normal', C=1.0)
     model.fit()
 
     y_pred_scaled = model.predict(X_test_scaled)
@@ -165,7 +165,7 @@ def train_rain():
     y_train_scaled = scaler_y.fit_transform(y_train)
     y_test_scaled = scaler_y.transform(y_test)
 
-    model = elm(hidden_units=20, activation_function='sigmoid', x=X_train_scaled, y=y_train_scaled, random_type='normal')
+    model = elm(hidden_units=20, activation_function='leaky_relu', x=X_train_scaled, y=y_train_scaled, random_type='normal', C=1.0)
     model.fit()
 
     y_pred_scaled = model.predict(X_test_scaled)
@@ -209,7 +209,7 @@ def train_wind():
     y_train_scaled = scaler_y.fit_transform(y_train)
     y_test_scaled = scaler_y.transform(y_test)
 
-    model = elm(hidden_units=20, activation_function='sigmoid', x=X_train_scaled, y=y_train_scaled, random_type='normal')
+    model = elm(hidden_units=20, activation_function='tanh', x=X_train_scaled, y=y_train_scaled, random_type='normal', C=1.0 )
     model.fit()
 
     y_pred_scaled = model.predict(X_test_scaled)

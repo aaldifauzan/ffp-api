@@ -1,15 +1,17 @@
 import numpy as np
-from numpy.linalg import pinv
+from numpy.linalg import pinv, inv
+import time
 
 class elm():
     '''
     A class for Extreme Learning Machine for regression problems.
     '''
-    def __init__(self, hidden_units, activation_function, x, y, random_type):
+    def __init__(self, hidden_units, activation_function, x, y, C, random_type='normal'):
         self.hidden_units = hidden_units
         self.activation_function = activation_function
         self.x = x
         self.y = y
+        self.C = C
         self.beta = np.zeros((self.hidden_units, 1))
         self.random_type = random_type
 
@@ -41,7 +43,7 @@ class elm():
         '''
         H = self.__input2hidden(self.x)
         # Regularization with identity matrix scaled by the inverse of C
-        self.beta = np.dot(pinv(np.dot(H, H.T)), np.dot(H, self.y))
+        self.beta = np.dot(pinv(np.dot(H, H.T) + np.eye(H.shape[0]) / self.C), np.dot(H, self.y))
 
     def predict(self, x):
         H = self.__input2hidden(x)

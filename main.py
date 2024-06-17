@@ -12,7 +12,7 @@ import requests
 app = Flask(__name__)
 
 # Load model
-with open('modelsz.pkl', 'rb') as file:
+with open('elmV2.pkl', 'rb') as file:
     model = pickle.load(file)
 
 # Connect to the database
@@ -199,6 +199,10 @@ def forecast():
 
     forecast_combined = []
 
+    ffmc0 = 85.0  
+    dmc0 = 6.0    
+    dc0 = 15.0
+
     for temp, hum, rain, wind in zip(temperature_forecast, humidity_forecast, rainfall_forecast, windspeed_forecast):
         future_date = pd.to_datetime(temp['date'])
 
@@ -209,21 +213,21 @@ def forecast():
         cursor.close()
         connection.close()
 
-        ffmc0 = 85.0  
-        dmc0 = 6.0    
-        dc0 = 15.0
-
         month = future_date.month
 
         if existing_data:
             fwi_instance = FWICLASS(temp=existing_data['temperature_predict'], rhum=existing_data['humidity_predict'], wind=existing_data['windspeed_predict'], prcp=existing_data['rainfall_predict'])
-            ffmc = fwi_instance.FFMCcalc(ffmc0)
-            dmc = fwi_instance.DMCcalc(dmc0, month)
-            dc = fwi_instance.DCcalc(dc0, month)
-            isi = fwi_instance.ISIcalc(ffmc)
-            bui = fwi_instance.BUIcalc(dmc, dc)
-            fwi = fwi_instance.FWIcalc(isi, bui)
+        else:
+            fwi_instance = FWICLASS(temp=temp['temperature'], rhum=hum['humidity'], wind=wind['windspeed'], prcp=rain['rainfall'])
 
+        ffmc = fwi_instance.FFMCcalc(ffmc0)
+        dmc = fwi_instance.DMCcalc(dmc0, month)
+        dc = fwi_instance.DCcalc(dc0, month)
+        isi = fwi_instance.ISIcalc(ffmc)
+        bui = fwi_instance.BUIcalc(dmc, dc)
+        fwi = fwi_instance.FWIcalc(isi, bui)
+
+        if existing_data:
             forecast_combined.append({
                 "date": temp['date'],
                 "temperature_predict": existing_data['temperature_predict'],
@@ -232,14 +236,6 @@ def forecast():
                 "windspeed_predict": existing_data['windspeed_predict']
             })
         else:
-            fwi_instance = FWICLASS(temp=temp['temperature'], rhum=hum['humidity'], wind=wind['windspeed'], prcp=rain['rainfall'])
-            ffmc = fwi_instance.FFMCcalc(ffmc0)
-            dmc = fwi_instance.DMCcalc(dmc0, month)
-            dc = fwi_instance.DCcalc(dc0, month)
-            isi = fwi_instance.ISIcalc(ffmc)
-            bui = fwi_instance.BUIcalc(dmc, dc)
-            fwi = fwi_instance.FWIcalc(isi, bui)
-
             connection = get_db_connection()
             cursor = connection.cursor()
             cursor.execute("INSERT INTO post_predicts (provinsi, kabupaten, date, temperature_predict, humidity_predict, rainfall_predict, windspeed_predict) VALUES (%s, %s, %s, %s, %s, %s, %s)",
@@ -257,11 +253,11 @@ def forecast():
                 "rainfall_predict": rain['rainfall'],
                 "windspeed_predict": wind['windspeed']
             })
-            
+
         ffmc0 = ffmc
         dmc0 = dmc
         dc0 = dc
-        
+
     sorted_forecast_combined = sorted(forecast_combined, key=lambda x: pd.to_datetime(x['date']))
     return jsonify(sorted_forecast_combined)
 
