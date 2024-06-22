@@ -5,17 +5,24 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from sklearn.preprocessing import StandardScaler
 import pickle
-from elmz import elm
+from elmz import elm  # Ensure this matches the actual module name and path
 from fwi import FWICLASS
 import requests
 
 app = Flask(__name__)
 
-# Load model
-with open('elmV2.pkl', 'rb') as file:
-    model = pickle.load(file)
+# Custom Unpickler to handle 'elm' attribute
+class CustomUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == "__main__":
+            module = "elmz"
+        return super().find_class(module, name)
 
-# Connect to the database
+# Load model using Custom Unpickler
+with open('elmV2.pkl', 'rb') as file:
+    model = CustomUnpickler(file).load()
+
+# Database connection and other functions
 def get_db_connection():
     return psycopg2.connect(user="ffp-indonesia",
                             password="forestfire123",
@@ -24,7 +31,6 @@ def get_db_connection():
                             database="ffp-indonesia",
                             cursor_factory=RealDictCursor)
 
-# Fetch data function
 def fetch_data(selected_provinsi, selected_kabupaten):
     connection = get_db_connection()
     cursor = connection.cursor()
@@ -34,7 +40,6 @@ def fetch_data(selected_provinsi, selected_kabupaten):
     connection.close()
     return data
 
-# Initialize scalers and fit them with the data
 def initialize_scalers(data):
     df = pd.DataFrame(data)
     df['date'] = pd.to_datetime(df['date'], format='%d-%m-%Y')
