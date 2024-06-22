@@ -18,8 +18,14 @@ CORS(app)
 def format_date(date):
     return date.strftime('%Y-%m-%d')
 
+class CustomUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == "__main__":
+            module = "elmz"
+        return super().find_class(module, name)
+
 with open('modelsz.pkl', 'rb') as file:
-    model = pickle.load(file)
+    model = CustomUnpickler(file).load()
 
 connection = psycopg2.connect(user="ffp-indonesia",
                               password="forestfire123",
@@ -57,6 +63,7 @@ def fetch_data(selected_provinsi, selected_kabupaten):
 def getkota():
     data = request.json
     id_provinsi = data.get('id_provinsi')
+    id_provinsi = str(id_provinsi)
     if not id_provinsi:
         return jsonify({'error': 'Province ID is required'}), 400
 
@@ -77,8 +84,6 @@ def getkota():
     finally:
         cursor.close()
         connection.close()
-
-
 
 @app.route('/train/temperature', methods=['GET'])
 def train_temp():
@@ -516,7 +521,6 @@ def fwi_data1():
 
     print("FWI Data:", results)
     return jsonify(results)
-
 
 @app.route('/api/history', methods=['GET'])
 def history():
