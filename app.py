@@ -10,8 +10,10 @@ from sklearn.linear_model import LinearRegression
 from elmz import elm
 from fwi import FWICLASS
 from datetime import datetime
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 def format_date(date):
     return date.strftime('%Y-%m-%d')
@@ -50,6 +52,33 @@ def fetch_data(selected_provinsi, selected_kabupaten):
         app.logger.error(f"No data found for Province ID: {selected_provinsi}, Regency ID: {selected_kabupaten}")
         return None
     return pd.DataFrame(data)
+    
+@app.route('/api/getkota', methods=['GET','POST'])
+def getkota():
+    data = request.json
+    id_provinsi = data.get('id_provinsi')
+    if not id_provinsi:
+        return jsonify({'error': 'Province ID is required'}), 400
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    try:
+        query = "SELECT id, name FROM regencies WHERE province_id = %s"
+        cursor.execute(query, (id_provinsi,))
+        regencies = cursor.fetchall()
+
+        if not regencies:
+            return jsonify({'error': 'No regencies found for the provided province ID'}), 404
+
+        regency_list = [{'id': reg['id'], 'name': reg['name']} for reg in regencies]
+        return jsonify(regency_list)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+
 
 @app.route('/train/temperature', methods=['GET'])
 def train_temp():
@@ -488,6 +517,82 @@ def fwi_data1():
     print("FWI Data:", results)
     return jsonify(results)
 
+
+@app.route('/api/history', methods=['GET'])
+def history():
+    selected_provinsi = request.args.get('provinsi')
+    selected_kabupaten = request.args.get('kabupaten')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    # Fetch data from posts table
+    query_posts = """
+        SELECT date, temperature, humidity, rainfall, windspeed
+        FROM posts
+        WHERE provinsi = %s AND kabupaten = %s AND date BETWEEN %s AND %s
+    """
+    cursor.execute(query_posts, (selected_provinsi, selected_kabupaten, start_date, end_date))
+    posts_data = cursor.fetchall()
+
+    # Fetch data from post_predict table
+    query_post_predict = """
+        SELECT date, temperature_predict, humidity_predict, rainfall_predict, windspeed_predict
+        FROM post_predicts
+        WHERE provinsi = %s AND kabupaten = %s AND date BETWEEN %s AND %s
+    """
+    cursor.execute(query_post_predict, (selected_provinsi, selected_kabupaten, start_date, end_date))
+    post_predict_data = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    if not posts_data and not post_predict_data:
+        return jsonify({"error": "No data found"}), 404
+
+    # Combine the data based on the date
+    combined_data = {}
+    
+    for post in posts_data:
+        date = post['date']
+        combined_data[date] = {
+            "date": date,
+            "temperature": post['temperature'],
+            "humidity": post['humidity'],
+            "rainfall": post['rainfall'],
+            "windspeed": post['windspeed'],
+            "temperature_predict": None,
+            "humidity_predict": None,
+            "rainfall_predict": None,
+            "windspeed_predict": None
+        }
+
+    for predict in post_predict_data:
+        date = predict['date']
+        if date in combined_data:
+            combined_data[date]["temperature_predict"] = predict['temperature_predict']
+            combined_data[date]["humidity_predict"] = predict['humidity_predict']
+            combined_data[date]["rainfall_predict"] = predict['rainfall_predict']
+            combined_data[date]["windspeed_predict"] = predict['windspeed_predict']
+        else:
+            combined_data[date] = {
+                "date": date,
+                "temperature": None,
+                "humidity": None,
+                "rainfall": None,
+                "windspeed": None,
+                "temperature_predict": predict['temperature_predict'],
+                "humidity_predict": predict['humidity_predict'],
+                "rainfall_predict": predict['rainfall_predict'],
+                "windspeed_predict": predict['windspeed_predict']
+            }
+
+    combined_data_list = list(combined_data.values())
+
+    return jsonify(combined_data_list)
+
 @app.route('/fwi-upload_db', methods=['GET', 'POST'])
 def fwi_data_db():
 
@@ -558,7 +663,7 @@ def fwi_data_xx():
     kabupaten = data['kabupaten']
     
     connection = get_db_connection()
-    cursor = connection.cursor()
+    cursor = connection.cursor(cursor_factory=RealDictCursor)
     q = """
         SELECT date, ffmc, dmc, dc, isi, bui, fwi, provinsi, kabupaten
         FROM fwis
@@ -570,7 +675,7 @@ def fwi_data_xx():
     connection.close()
 
     if not data:
-        return jsonify({"error": "No data found"}), 404
+        return jsonify({"status": "error", "message": "No data found"}), 404
 
     results = []
 
@@ -587,7 +692,7 @@ def fwi_data_xx():
             "kabupaten": entry['kabupaten']
         })
 
-    return jsonify(results)
+    return jsonify({"status": "success", "data": results})
 
 @app.route('/api/fwi-data-current', methods=['POST'])
 def fwi_data_current():
