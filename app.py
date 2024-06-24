@@ -59,7 +59,7 @@ def fetch_data(selected_provinsi, selected_kabupaten):
         return None
     return pd.DataFrame(data)
     
-@app.route('/api/getkota', methods=['GET','POST'])
+@app.route('/predict/api/getkota', methods=['GET','POST'])
 def getkota():
     data = request.json
     id_provinsi = data.get('id_provinsi')
@@ -85,7 +85,7 @@ def getkota():
         cursor.close()
         connection.close()
 
-@app.route('/train/temperature', methods=['GET'])
+@app.route('/predict/train/temperature', methods=['GET'])
 def train_temp():
     global df, scaler_X, scaler_y, model
     selected_provinsi = request.args.get('provinsi')
@@ -129,7 +129,7 @@ def train_temp():
     }
     return jsonify(response)
 
-@app.route('/train/humidity', methods=['GET'])
+@app.route('/predict/train/humidity', methods=['GET'])
 def train_humid():
     global df, scaler_X, scaler_y, model
     selected_provinsi = request.args.get('provinsi')
@@ -173,7 +173,7 @@ def train_humid():
     }
     return jsonify(response)
 
-@app.route('/train/rainfall', methods=['GET'])
+@app.route('/predict/train/rainfall', methods=['GET'])
 def train_rain():
     global df, scaler_X, scaler_y, model
     selected_provinsi = request.args.get('provinsi')
@@ -217,7 +217,7 @@ def train_rain():
     }
     return jsonify(response)
 
-@app.route('/train/windspeed', methods=['GET'])
+@app.route('/predict/train/windspeed', methods=['GET'])
 def train_wind():
     global df, scaler_X, scaler_y, model
     selected_provinsi = request.args.get('provinsi')
@@ -261,7 +261,7 @@ def train_wind():
     }
     return jsonify(response)
 
-@app.route('/train', methods=['POST', 'GET'])
+@app.route('/predict/train', methods=['POST', 'GET'])
 def final_data():
     global df, scaler_X, scaler_y, model
     data = request.json
@@ -273,10 +273,10 @@ def final_data():
     if df is None:
         return jsonify({"error": "No data found for training"}), 404
 
-    response_temp = app.test_client().get('/train/temperature', query_string={'provinsi': selected_provinsi, 'kabupaten': selected_kabupaten})
-    response_humid = app.test_client().get('/train/humidity', query_string={'provinsi': selected_provinsi, 'kabupaten': selected_kabupaten})
-    response_rain = app.test_client().get('/train/rainfall', query_string={'provinsi': selected_provinsi, 'kabupaten': selected_kabupaten})
-    response_wind = app.test_client().get('/train/windspeed', query_string={'provinsi': selected_provinsi, 'kabupaten': selected_kabupaten})
+    response_temp = app.test_client().get('/predict/train/temperature', query_string={'provinsi': selected_provinsi, 'kabupaten': selected_kabupaten})
+    response_humid = app.test_client().get('/predict/train/humidity', query_string={'provinsi': selected_provinsi, 'kabupaten': selected_kabupaten})
+    response_rain = app.test_client().get('/predict/train/rainfall', query_string={'provinsi': selected_provinsi, 'kabupaten': selected_kabupaten})
+    response_wind = app.test_client().get('/predict/train/windspeed', query_string={'provinsi': selected_provinsi, 'kabupaten': selected_kabupaten})
 
     if response_temp.status_code != 200:
         app.logger.error('Error in temperature prediction: ' + response_temp.get_json().get('error', 'Unknown error'))
@@ -387,7 +387,7 @@ def final_data():
 
     return jsonify(predict_data)
 
-@app.route('/api/fwi-data-map', methods=['GET', 'POST'])
+@app.route('/predict/api/fwi-data-map', methods=['GET', 'POST'])
 def fwi_data():
     data = request.json
     date = data['date']
@@ -453,7 +453,7 @@ def fwi_data():
         dc0 = dc
     return jsonify(results)
 
-@app.route('/api/fwi-data-0', methods=['GET'])
+@app.route('/predict/api/fwi-data-0', methods=['GET'])
 def fwi_data1():
     data = request.json
     date = data['date']
@@ -522,7 +522,7 @@ def fwi_data1():
     print("FWI Data:", results)
     return jsonify(results)
 
-@app.route('/api/history', methods=['GET'])
+@app.route('/predict/api/history', methods=['GET'])
 def history():
     selected_provinsi = request.args.get('provinsi')
     selected_kabupaten = request.args.get('kabupaten')
@@ -597,7 +597,7 @@ def history():
 
     return jsonify(combined_data_list)
 
-@app.route('/fwi-upload_db', methods=['GET', 'POST'])
+@app.route('/predict/fwi-upload_db', methods=['GET', 'POST'])
 def fwi_data_db():
 
     cursor = connection.cursor()
@@ -657,7 +657,7 @@ def fwi_data_db():
         dc0 = dc
     return jsonify(results)
 
-@app.route('/api/fwi-data-all', methods=['POST'])
+@app.route('/predict/api/fwi-data-all', methods=['POST'])
 def fwi_data_xx():
     data = request.json
 
@@ -698,7 +698,7 @@ def fwi_data_xx():
 
     return jsonify({"status": "success", "data": results})
 
-@app.route('/api/fwi-data-current', methods=['POST'])
+@app.route('/predict/api/fwi-data-current', methods=['POST'])
 def fwi_data_current():
     data = request.json
     date = data.get('date', datetime.now().strftime('%Y-%m-%d'))

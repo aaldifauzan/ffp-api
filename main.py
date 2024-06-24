@@ -14,7 +14,7 @@ app = Flask(__name__)
 # Custom Unpickler to handle 'elm' attribute
 class CustomUnpickler(pickle.Unpickler):
     def find_class(self, module, name):
-        if module == "__main__":
+        if module == "_main_":
             module = "elmz"
         return super().find_class(module, name)
 
@@ -68,6 +68,9 @@ def initialize_scalers(data):
 
     return scalers, df
 
+def format_date(date):
+    return date.strftime('%Y-%m-%d')
+
 @app.route('/forecast/temperature', methods=['GET'])
 def forecast_temperature():
     selected_provinsi = request.args.get('selectedProvinsi')
@@ -96,6 +99,7 @@ def forecast_temperature():
 
     forecast_features['temperature'] = predicted_forecast_temperature_denormalized
     result = forecast_features[['date', 'temperature']].round(1)
+    result['date'] = result['date'].apply(format_date)
 
     return jsonify(result.to_dict(orient='records'))
 
@@ -127,6 +131,7 @@ def forecast_humidity():
 
     forecast_features['humidity'] = predicted_forecast_humidity_denormalized
     result = forecast_features[['date', 'humidity']].round(1)
+    result['date'] = result['date'].apply(format_date)
 
     return jsonify(result.to_dict(orient='records'))
 
@@ -158,6 +163,7 @@ def forecast_rainfall():
 
     forecast_features['rainfall'] = predicted_forecast_rain_denormalized
     result = forecast_features[['date', 'rainfall']].round(1)
+    result['date'] = result['date'].apply(format_date)
 
     return jsonify(result.to_dict(orient='records'))
 
@@ -189,18 +195,26 @@ def forecast_windspeed():
 
     forecast_features['windspeed'] = predicted_forecast_wind_denormalized
     result = forecast_features[['date', 'windspeed']].round(1)
+    result['date'] = result['date'].apply(format_date)
 
     return jsonify(result.to_dict(orient='records'))
 
-@app.route('/forecast', methods=['POST'])
+@app.route('/forecast', methods=['POST', 'GET'])
 def forecast():
-    selected_provinsi = request.json.get('selectedProvinsi')
-    selected_kabupaten = request.json.get('selectedKabupaten')
+    selected_provinsi = request.args.get('selectedProvinsi') or request.form.get('selectedProvinsi')
+    selected_kabupaten = request.args.get('selectedKabupaten') or request.form.get('selectedKabupaten')
 
-    temperature_forecast = requests.get(f'http://127.0.0.1:8888/forecast/temperature?selectedProvinsi={selected_provinsi}&selectedKabupaten={selected_kabupaten}').json()
-    humidity_forecast = requests.get(f'http://127.0.0.1:8888/forecast/humidity?selectedProvinsi={selected_provinsi}&selectedKabupaten={selected_kabupaten}').json()
-    rainfall_forecast = requests.get(f'http://127.0.0.1:8888/forecast/rainfall?selectedProvinsi={selected_provinsi}&selectedKabupaten={selected_kabupaten}').json()
-    windspeed_forecast = requests.get(f'http://127.0.0.1:8888/forecast/windspeed?selectedProvinsi={selected_provinsi}&selectedKabupaten={selected_kabupaten}').json()
+    temperature_response = requests.get(f'https://forestfirepredictionidn.cloud/forecast/temperature', params={'selectedProvinsi': selected_provinsi, 'selectedKabupaten': selected_kabupaten})
+    temperature_forecast = temperature_response.json()
+
+    humidity_response = requests.get(f'https://forestfirepredictionidn.cloud/forecast/humidity', params={'selectedProvinsi': selected_provinsi, 'selectedKabupaten': selected_kabupaten})
+    humidity_forecast = humidity_response.json()
+
+    rainfall_response = requests.get(f'https://forestfirepredictionidn.cloud/forecast/rainfall', params={'selectedProvinsi': selected_provinsi, 'selectedKabupaten': selected_kabupaten})
+    rainfall_forecast = rainfall_response.json()
+
+    windspeed_response = requests.get(f'https://forestfirepredictionidn.cloud/forecast/windspeed', params={'selectedProvinsi': selected_provinsi, 'selectedKabupaten': selected_kabupaten})
+    windspeed_forecast = windspeed_response.json()
 
     forecast_combined = []
 
@@ -238,7 +252,13 @@ def forecast():
                 "temperature_predict": existing_data['temperature_predict'],
                 "humidity_predict": existing_data['humidity_predict'],
                 "rainfall_predict": existing_data['rainfall_predict'],
-                "windspeed_predict": existing_data['windspeed_predict']
+                "windspeed_predict": existing_data['windspeed_predict'],
+                "ffmc": ffmc,
+                "dmc": dmc,
+                "dc": dc,
+                "isi": isi,
+                "bui": bui,
+                "fwi": fwi
             })
         else:
             connection = get_db_connection()
@@ -256,7 +276,13 @@ def forecast():
                 "temperature_predict": temp['temperature'],
                 "humidity_predict": hum['humidity'],
                 "rainfall_predict": rain['rainfall'],
-                "windspeed_predict": wind['windspeed']
+                "windspeed_predict": wind['windspeed'],
+                "ffmc": ffmc,
+                "dmc": dmc,
+                "dc": dc,
+                "isi": isi,
+                "bui": bui,
+                "fwi": fwi
             })
 
         ffmc0 = ffmc
@@ -264,6 +290,9 @@ def forecast():
         dc0 = dc
 
     sorted_forecast_combined = sorted(forecast_combined, key=lambda x: pd.to_datetime(x['date']))
+    for forecast in sorted_forecast_combined:
+        forecast['date'] = format_date(pd.to_datetime(forecast['date']))
+        
     return jsonify(sorted_forecast_combined)
 
 if __name__ == '__main__':
